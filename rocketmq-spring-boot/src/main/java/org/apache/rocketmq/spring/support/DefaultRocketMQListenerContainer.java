@@ -18,6 +18,7 @@
 package org.apache.rocketmq.spring.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.rocketmq.client.AccessChannel;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.MessageSelector;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
@@ -59,6 +60,11 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
 
     private ApplicationContext applicationContext;
 
+    /**
+     * The name of the DefaultRocketMQListenerContainer instance
+     */
+    private String name;
+
     private long suspendCurrentQueueTimeMillis = 1000;
 
     /**
@@ -68,6 +74,8 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
     private int delayLevelWhenNextConsume = 0;
 
     private String nameServer;
+
+    private AccessChannel accessChannel = AccessChannel.LOCAL;
 
     private String consumerGroup;
 
@@ -94,6 +102,7 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
     private SelectorType selectorType;
     private String selectorExpression;
     private MessageModel messageModel;
+    private long consumeTimeout;
 
     public long getSuspendCurrentQueueTimeMillis() {
         return suspendCurrentQueueTimeMillis;
@@ -117,6 +126,14 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
 
     public void setNameServer(String nameServer) {
         this.nameServer = nameServer;
+    }
+
+    public AccessChannel getAccessChannel() {
+        return accessChannel;
+    }
+
+    public void setAccessChannel(AccessChannel accessChannel) {
+        this.accessChannel = accessChannel;
     }
 
     public String getConsumerGroup() {
@@ -176,6 +193,7 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
         this.messageModel = anno.messageModel();
         this.selectorExpression = anno.selectorExpression();
         this.selectorType = anno.selectorType();
+        this.consumeTimeout = anno.consumeTimeout();
     }
 
     public ConsumeMode getConsumeMode() {
@@ -296,6 +314,10 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
             '}';
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public class DefaultMessageListenerConcurrently implements MessageListenerConcurrently {
 
         @SuppressWarnings("unchecked")
@@ -414,11 +436,21 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
                     resolveRequiredPlaceholders(this.rocketMQMessageListener.customizedTraceTopic()));
         }
 
-        consumer.setNamesrvAddr(nameServer);
+        String customizedNameServer = this.applicationContext.getEnvironment().resolveRequiredPlaceholders(this.rocketMQMessageListener.nameServer());
+        if (customizedNameServer != null) {
+            consumer.setNamesrvAddr(customizedNameServer);
+        } else {
+            consumer.setNamesrvAddr(nameServer);
+        }
+        if (accessChannel != null) {
+            consumer.setAccessChannel(accessChannel);
+        }
         consumer.setConsumeThreadMax(consumeThreadMax);
         if (consumeThreadMax < consumer.getConsumeThreadMin()) {
             consumer.setConsumeThreadMin(consumeThreadMax);
         }
+        consumer.setConsumeTimeout(consumeTimeout);
+        consumer.setInstanceName(this.name);
 
         switch (messageModel) {
             case BROADCASTING:

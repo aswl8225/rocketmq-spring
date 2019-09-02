@@ -28,9 +28,11 @@ import java.lang.annotation.Target;
 @Documented
 public @interface RocketMQMessageListener {
 
+    String NAME_SERVER_PLACEHOLDER = "${rocketmq.name-server:}";
     String ACCESS_KEY_PLACEHOLDER = "${rocketmq.consumer.access-key:}";
     String SECRET_KEY_PLACEHOLDER = "${rocketmq.consumer.secret-key:}";
     String TRACE_TOPIC_PLACEHOLDER = "${rocketmq.consumer.customized-trace-topic:}";
+    String ACCESS_CHANNEL_PLACEHOLDER = "${rocketmq.access-channel:}";
 
     /**
      * Consumers of the same role is required to have exactly same subscriptions and consumerGroup to correctly achieve
@@ -74,6 +76,11 @@ public @interface RocketMQMessageListener {
     int consumeThreadMax() default 64;
 
     /**
+     * Max consumer timeout, default 30s.
+     */
+    long consumeTimeout() default 30000L;
+
+    /**
      * The property of "access-key".
      */
     String accessKey() default ACCESS_KEY_PLACEHOLDER;
@@ -93,4 +100,13 @@ public @interface RocketMQMessageListener {
      */
     String customizedTraceTopic() default TRACE_TOPIC_PLACEHOLDER;
 
+    /**
+     * The property of "name-server".
+     */
+    String nameServer() default NAME_SERVER_PLACEHOLDER;
+
+    /**
+     * The property of "access-channel".
+     */
+    String accessChannel() default ACCESS_CHANNEL_PLACEHOLDER;
 }

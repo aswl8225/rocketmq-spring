@@ -14,26 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.rocketmq.samples.springboot;
 
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
-import org.springframework.stereotype.Service;
+import org.apache.rocketmq.spring.annotation.ExtRocketMQTemplateConfiguration;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 
-/**
- * StringTransactionalConsumer
- */
-@Service
-@RocketMQMessageListener(
-    topic = "${demo.rocketmq.transTopic}",
-    consumerGroup = "group_define_in_Aliware_MQ",
-    accessKey = "AK", // if accessKey is empty, it will read by `rocketmq.consumer.access-key` key
-    secretKey = "SK"  // if accessKey is empty, it will read by `rocketmq.consumer.secret-key` key
-    )
-public class ACLStringTransactionalConsumer implements RocketMQListener<String> {
-    @Override
-    public void onMessage(String message) {
-        System.out.printf("------- ACL StringTransactionalConsumer received: %s \n", message);
-    }
+@ExtRocketMQTemplateConfiguration(nameServer = "${demo.rocketmq.extNameServer}")
+public class ExtRocketMQTemplate extends RocketMQTemplate {
 }

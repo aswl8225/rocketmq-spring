@@ -1,6 +1,6 @@
 # RocketMQ-Spring [![Build Status](https://travis-ci.org/apache/rocketmq-spring.svg?branch=master)](https://travis-ci.org/apache/rocketmq-spring) [![Coverage Status](https://coveralls.io/repos/github/apache/rocketmq-spring/badge.svg?branch=master)](https://coveralls.io/github/apache/rocketmq-spring?branch=master)
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.rocketmq/rocketmq-spring-all/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg:org.apache.rocketmq)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.rocketmq/rocketmq-spring-all/badge.svg)](https://search.maven.org/search?q=g:org.apache.rocketmq%20AND%20a:rocketmq-spring-all)
 [![GitHub release](https://img.shields.io/badge/release-download-orange.svg)](https://github.com/apache/rocketmq-spring/releases)
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
@@ -29,6 +29,7 @@ We are always very happy to have contributions, whether for trivial cleanups or 
 
 - [x] synchronous transmission
 - [x] synchronous ordered transmission
+- [x] synchronous batch transmission
 - [x] asynchronous transmission
 - [x] asynchronous ordered transmission
 - [x] orderly consume
@@ -43,7 +44,7 @@ We are always very happy to have contributions, whether for trivial cleanups or 
 
 Please see the complete sample [rocketmq-spring-boot-samples](rocketmq-spring-boot-samples)
 
-Note: Current RELEASE.VERSION=2.0.1 
+Note: Current RELEASE.VERSION=2.0.3 
 
 ```xml
 <!--add dependency in pom.xml-->
@@ -120,10 +121,10 @@ public class ProducerApplication implements CommandLineRunner{
     public void run(String... args) throws Exception {
         try {
             // Build a SpringMessage for sending in transaction
-            Message msg = MessageBuilder.withPayload(..)...
+            Message msg = MessageBuilder.withPayload(..)...;
             // In sendMessageInTransaction(), the first parameter transaction name ("test")
             // must be same with the @RocketMQTransactionListener's member field 'transName'
-            rocketMQTemplate.sendMessageInTransaction("test", "test-topic" msg, null);
+            rocketMQTemplate.sendMessageInTransaction("test", "test-topic", msg, null);
         } catch (MQClientException e) {
             e.printStackTrace(System.out);
         }
@@ -188,7 +189,7 @@ public class ConsumerApplication{
 
 > More relevant configurations for consuming:
 >
-> see: [RocketMQMessageListener](src/main/java/org/apache/rocketmq/spring/starter/annotation/RocketMQMessageListener.java)
+> see: [RocketMQMessageListener](rocketmq-spring-boot/src/main/java/org/apache/rocketmq/spring/annotation/RocketMQMessageListener.java)
 
 ### Message Trace
 
@@ -279,7 +280,7 @@ public class MyConsumer implements RocketMQListener<String> {
 
 1. How to connected many `nameserver` on production environment？
 
-    `rocketmq.name-server` support the configuration of multiple `nameserver`, separated by `;`. For example: `172.19.0.1: 9876; 172.19.0.2: 9876`
+    `rocketmq.name-server` support the configuration of multiple `nameserver`, separated by `;`. For example: `172.19.0.1:9876; 172.19.0.2:9876`
 
 1. When was `rocketMQTemplate` destroyed?
 
@@ -361,5 +362,45 @@ public class MyConsumer implements RocketMQListener<String> {
 
 
 1. How do I send transactional messages?
-   It needs two steps on client side: a) Define a class which is annotated with @RocketMQTransactionListener and implements RocketMQLocalTransactionListener interface, in which, the executeLocalTransaction() and checkLocalTransaction() methods are implemented;
+   It needs two steps on client side: 
+   
+   a) Define a class which is annotated with @RocketMQTransactionListener and implements RocketMQLocalTransactionListener interface, in which, the executeLocalTransaction() and checkLocalTransaction() methods are implemented;
+   
    b) Invoke the sendMessageInTransaction() method with the RocketMQTemplate API. Note: The first parameter of this method is correlated with the txProducerGroup attribute of @RocketMQTransactionListener. It can be null if using the default transaction producer group.
+
+1. How do I create more than one RocketMQTemplate with a different name-server or other specific properties?
+    ```java
+    // Step1. Define an extra RocketMQTemplate with required properties, note, the 'nameServer' property must be different from the value of global
+    // Spring configuration 'rocketmq.name-server', other properties are optionally defined, they will use the global configuration 
+    // definition by default.  
+ 
+    // The RocketMQTemplate's Spring Bean name is 'extRocketMQTemplate', same with the simplified class name (Initials lowercase)
+    @ExtRocketMQTemplateConfiguration(nameServer="127.0.0.1:9876"
+       , ... // override other specific properties if needed
+    )
+    public class ExtRocketMQTemplate extends RocketMQTemplate {
+      // keep the body empty
+    }
+ 
+ 
+    // Step2. Use the extra RocketMQTemplate. e.g.
+    @Resource(name = "extRocketMQTemplate") // Must define the name to qualify to extra-defined RocketMQTemplate bean.
+    private RocketMQTemplate extRocketMQTemplate;
+    // you can use the template as normal.
+    
+    ```
+ 
+1. How do I create a consumer Listener with different name-server other than the global Spring configuration 'rocketmq.name-server' ?  
+    ```java
+    @Service
+    @RocketMQMessageListener(
+       nameServer = "NEW-NAMESERVER-LIST", // define new nameServer list
+       topic = "test-topic-1", 
+       consumerGroup = "my-consumer_test-topic-1",
+       enableMsgTrace = true,
+       customizedTraceTopic = "my-trace-topic"
+    )
+    public class MyNameServerConsumer implements RocketMQListener<String> {
+       ...
+    }
+    ```  

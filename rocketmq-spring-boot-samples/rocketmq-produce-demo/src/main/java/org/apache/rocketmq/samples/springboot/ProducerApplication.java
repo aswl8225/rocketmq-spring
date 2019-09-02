@@ -35,6 +35,8 @@ import org.springframework.messaging.support.MessageBuilder;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -54,6 +56,8 @@ public class ProducerApplication implements CommandLineRunner {
     private String orderPaidTopic;
     @Value("${demo.rocketmq.msgExtTopic}")
     private String msgExtTopic;
+    @Resource(name = "extRocketMQTemplate")
+    private RocketMQTemplate extRocketMQTemplate;
 
     public static void main(String[] args) {
         SpringApplication.run(ProducerApplication.class, args);
@@ -64,6 +68,10 @@ public class ProducerApplication implements CommandLineRunner {
         // Send string
         SendResult sendResult = rocketMQTemplate.syncSend(springTopic, "Hello, World!");
         System.out.printf("syncSend1 to topic %s sendResult=%s %n", springTopic, sendResult);
+
+        // Use the extRocketMQTemplate
+        sendResult = extRocketMQTemplate.syncSend(springTopic, "Hello, World!");
+        System.out.printf("extRocketMQTemplate.syncSend1 to topic %s sendResult=%s %n", springTopic, sendResult);
 
         // Send string with spring Message
         sendResult = rocketMQTemplate.syncSend(springTopic, MessageBuilder.withPayload("Hello, World! I'm from spring message").build());
@@ -87,8 +95,24 @@ public class ProducerApplication implements CommandLineRunner {
         rocketMQTemplate.convertAndSend(msgExtTopic + ":tag1", "I'm from tag1");
         System.out.printf("syncSend topic %s tag %s %n", msgExtTopic, "tag1");
 
+
+        // Send a batch of strings
+        testBatchMessages();
+
         // Send transactional messages
         testTransaction();
+    }
+
+    private void testBatchMessages() {
+        List<Message> msgs = new ArrayList<Message>();
+        for (int i = 0; i < 10; i++) {
+            msgs.add(MessageBuilder.withPayload("Hello RocketMQ Batch Msg#" + i).
+                    setHeader(RocketMQHeaders.KEYS, "KEY_" + i).build());
+        }
+
+        SendResult sr = rocketMQTemplate.syncSend(springTopic, msgs, 60000);
+
+        System.out.printf("--- Batch messages send result :" + sr);
     }
 
 
@@ -98,7 +122,7 @@ public class ProducerApplication implements CommandLineRunner {
             try {
 
                 Message msg = MessageBuilder.withPayload("Hello RocketMQ " + i).
-                    setHeader(RocketMQHeaders.KEYS, "KEY_" + i).build();
+                    setHeader(RocketMQHeaders.TRANSACTION_ID, "KEY_" + i).build();
                 SendResult sendResult = rocketMQTemplate.sendMessageInTransaction(TX_PGROUP_NAME,
                     springTransTopic + ":" + tags[i % tags.length], msg, null);
                 System.out.printf("------ send Transactional msg body = %s , sendResult=%s %n",
