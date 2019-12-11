@@ -15,20 +15,35 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.spring.autoconfigure;
+package org.apache.rocketmq.samples.springboot.domain;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+public class User {
+        private String userName;
+        private Byte userAge;
 
-@Configuration
-@ConditionalOnMissingBean(ObjectMapper.class)
-class JacksonFallbackConfiguration {
+        public String getUserName() {
+            return userName;
+        }
 
-    @Bean
-    public ObjectMapper rocketMQMessageObjectMapper() {
-        return new ObjectMapper();
+        public User setUserName(String userName) {
+            this.userName = userName;
+            return this;
+        }
+
+        public Byte getUserAge() {
+            return userAge;
+        }
+
+        public User setUserAge(Byte userAge) {
+            this.userAge = userAge;
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                "userName='" + userName + '\'' +
+                ", userAge=" + userAge +
+                '}';
+        }
     }
-
-}

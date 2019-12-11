@@ -17,7 +17,11 @@
 
 package org.apache.rocketmq.spring.support;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.nio.charset.Charset;
+import java.util.List;
+import java.util.Objects;
 import org.apache.rocketmq.client.AccessChannel;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.MessageSelector;
@@ -45,13 +49,9 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.messaging.converter.MessageConverter;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.Assert;
-
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.nio.charset.Charset;
-import java.util.List;
-import java.util.Objects;
 
 @SuppressWarnings("WeakerAccess")
 public class DefaultRocketMQListenerContainer implements InitializingBean,
@@ -85,7 +85,7 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
 
     private String charset = "UTF-8";
 
-    private ObjectMapper objectMapper;
+    private MessageConverter messageConverter;
 
     private RocketMQListener rocketMQListener;
 
@@ -164,14 +164,14 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
         this.charset = charset;
     }
 
-    public ObjectMapper getObjectMapper() {
-        return objectMapper;
+    public MessageConverter getMessageConverter() {
+        return messageConverter;
     }
 
-    public void setObjectMapper(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public DefaultRocketMQListenerContainer setMessageConverter(MessageConverter messageConverter) {
+        this.messageConverter = messageConverter;
+        return this;
     }
-
 
     public RocketMQListener getRocketMQListener() {
         return rocketMQListener;
@@ -191,8 +191,8 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
         this.consumeMode = anno.consumeMode();
         this.consumeThreadMax = anno.consumeThreadMax();
         this.messageModel = anno.messageModel();
-        this.selectorExpression = anno.selectorExpression();
         this.selectorType = anno.selectorType();
+        this.selectorExpression = anno.selectorExpression();
         this.consumeTimeout = anno.consumeTimeout();
     }
 
@@ -202,6 +202,10 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
 
     public SelectorType getSelectorType() {
         return selectorType;
+    }
+
+    public void setSelectorExpression(String selectorExpression) {
+        this.selectorExpression = selectorExpression;
     }
 
     public String getSelectorExpression() {
@@ -376,7 +380,7 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
             } else {
                 // If msgType not string, use objectMapper change it.
                 try {
-                    return objectMapper.readValue(str, messageType);
+                    return this.getMessageConverter().fromMessage(MessageBuilder.withPayload(str).build(), messageType);
                 } catch (Exception e) {
                     log.info("convert failed. str:{}, msgType:{}", str, messageType);
                     throw new RuntimeException("cannot convert message to " + messageType, e);
@@ -450,7 +454,6 @@ public class DefaultRocketMQListenerContainer implements InitializingBean,
             consumer.setConsumeThreadMin(consumeThreadMax);
         }
         consumer.setConsumeTimeout(consumeTimeout);
-        consumer.setInstanceName(this.name);
 
         switch (messageModel) {
             case BROADCASTING:
